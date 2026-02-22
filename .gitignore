@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.idea/
+dist/
+build/
+*.spec
+*.exe
+course_assignments.json
