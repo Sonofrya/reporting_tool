@@ -2,7 +2,12 @@ __pycache__/
 *.pyc
 .idea/
 dist/
+dist_gui/
 build/
+build_gui/
 *.spec
 *.exe
+*.rar
 course_assignments.json
+build_stdout.txt
+build_stderr.txt
