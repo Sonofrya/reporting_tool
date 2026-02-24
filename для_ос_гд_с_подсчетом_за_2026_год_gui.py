@@ -42,9 +42,9 @@ def load_courses():
 
 
 BP_COURSES, IT_COURSES, PRM_COURSES = load_courses()
-ALL_KNOWN_COURSES = BP_COURSES | IT_COURSES
+ALL_KNOWN_COURSES = BP_COURSES | IT_COURSES | PRM_COURSES
 
-CATEGORY_OPTIONS = ["—", "BP", "IT", "PRM", "Блеклист"]
+CATEGORY_OPTIONS = ["BP", "IT", "PRM", "Блеклист"]
 
 
 # ============================================================
@@ -83,7 +83,7 @@ def get_effective_sets(assignments):
     it = IT_COURSES | assignments["IT"]
     prm = PRM_COURSES | assignments["PRM"]
     blacklist = assignments["BLACKLIST"]
-    all_known = bp | it | blacklist
+    all_known = bp | it | prm | blacklist
     return bp, it, prm, blacklist, all_known
 
 
@@ -216,7 +216,18 @@ class App(ctk.CTk):
 
         # -- Вкладка Статистика --
         self.txt_stats = ctk.CTkTextbox(self.tab_stats, font=ctk.CTkFont(family="Consolas", size=13))
-        self.txt_stats.pack(fill="both", expand=True, padx=5, pady=5)
+        self.txt_stats.pack(fill="both", expand=True, padx=5, pady=(5, 0))
+
+        # Включить копирование через Ctrl+C и контекстное меню
+        self._enable_copy(self.txt_stats)
+
+        stats_btn_frame = ctk.CTkFrame(self.tab_stats, fg_color="transparent")
+        stats_btn_frame.pack(fill="x", padx=5, pady=5)
+        ctk.CTkButton(
+            stats_btn_frame, text="Копировать всё", width=150, height=28,
+            font=ctk.CTkFont(size=12), fg_color="#555555", hover_color="#777777",
+            command=self._copy_stats,
+        ).pack(side="left")
 
         # -- Вкладка Неклассифицированные --
         self._build_unclass_tab()
@@ -253,18 +264,52 @@ class App(ctk.CTk):
         self.lbl_unclass_count = ctk.CTkLabel(top, text="", text_color="gray")
         self.lbl_unclass_count.pack(side="right", padx=10)
 
+        # Кнопки выделения
+        sel_frame = ctk.CTkFrame(self.tab_unclass, fg_color="transparent")
+        sel_frame.pack(fill="x", padx=5, pady=(0, 3))
+
+        ctk.CTkButton(
+            sel_frame, text="Выделить все", width=120, height=28,
+            font=ctk.CTkFont(size=12), fg_color="#555555", hover_color="#777777",
+            command=self._select_all_unclass,
+        ).pack(side="left", padx=(0, 5))
+
+        ctk.CTkButton(
+            sel_frame, text="Снять все", width=120, height=28,
+            font=ctk.CTkFont(size=12), fg_color="#555555", hover_color="#777777",
+            command=self._deselect_all_unclass,
+        ).pack(side="left")
+
         self.unclass_scroll = ctk.CTkScrollableFrame(self.tab_unclass)
         self.unclass_scroll.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
+        # Панель массового назначения
         btn_frame = ctk.CTkFrame(self.tab_unclass, fg_color="transparent")
         btn_frame.pack(fill="x", padx=5, pady=5)
 
+        ctk.CTkLabel(btn_frame, text="Назначить выбранные в:",
+                     font=ctk.CTkFont(size=13)).pack(side="left", padx=(0, 5))
+
+        self.unclass_target_var = ctk.StringVar(value="BP")
+        self.unclass_target_menu = ctk.CTkOptionMenu(
+            btn_frame, variable=self.unclass_target_var,
+            values=CATEGORY_OPTIONS, width=120, height=30,
+        )
+        self.unclass_target_menu.pack(side="left", padx=(0, 10))
+
         self.btn_apply = ctk.CTkButton(
-            btn_frame, text="Применить и пересчитать",
+            btn_frame, text="Применить",
             fg_color="#2B7A0B", hover_color="#1E5A08",
             command=self._apply_assignments, state="disabled",
         )
         self.btn_apply.pack(side="left", padx=(0, 10))
+
+        self.btn_recalc_unclass = ctk.CTkButton(
+            btn_frame, text="Пересчитать",
+            fg_color="#1F6AA5", hover_color="#164d78",
+            command=self._recalculate_from_unclass,
+        )
+        self.btn_recalc_unclass.pack(side="left", padx=(0, 10))
 
         self.btn_reset = ctk.CTkButton(
             btn_frame, text="Сбросить все назначения",
@@ -276,7 +321,50 @@ class App(ctk.CTk):
     def _build_assigned_tab(self):
         """Строит интерфейс вкладки Назначения."""
         self.assigned_scroll = ctk.CTkScrollableFrame(self.tab_assigned)
-        self.assigned_scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        self.assigned_scroll.pack(fill="both", expand=True, padx=5, pady=(5, 0))
+
+        # Панель действий
+        assigned_btn_frame = ctk.CTkFrame(self.tab_assigned, fg_color="transparent")
+        assigned_btn_frame.pack(fill="x", padx=5, pady=5)
+
+        ctk.CTkButton(
+            assigned_btn_frame, text="Выделить все", width=120, height=28,
+            font=ctk.CTkFont(size=12), fg_color="#555555", hover_color="#777777",
+            command=self._select_all_assigned,
+        ).pack(side="left", padx=(0, 5))
+
+        ctk.CTkButton(
+            assigned_btn_frame, text="Снять все", width=120, height=28,
+            font=ctk.CTkFont(size=12), fg_color="#555555", hover_color="#777777",
+            command=self._deselect_all_assigned,
+        ).pack(side="left", padx=(0, 15))
+
+        ctk.CTkLabel(assigned_btn_frame, text="Перенести в:",
+                     font=ctk.CTkFont(size=13)).pack(side="left", padx=(0, 5))
+
+        self.assigned_target_var = ctk.StringVar(value="BP")
+        ctk.CTkOptionMenu(
+            assigned_btn_frame, variable=self.assigned_target_var,
+            values=CATEGORY_OPTIONS + ["Убрать"],
+            width=120, height=30,
+        ).pack(side="left", padx=(0, 10))
+
+        ctk.CTkButton(
+            assigned_btn_frame, text="Применить",
+            fg_color="#2B7A0B", hover_color="#1E5A08",
+            width=120, height=30,
+            command=self._move_assigned,
+        ).pack(side="left", padx=(0, 10))
+
+        self.btn_recalc = ctk.CTkButton(
+            assigned_btn_frame, text="Пересчитать",
+            fg_color="#1F6AA5", hover_color="#164d78",
+            width=120, height=30,
+            command=self._recalculate_from_assigned,
+        )
+        self.btn_recalc.pack(side="left")
+
+        self.assigned_check_vars = {}
         self._refresh_assigned_tab()
 
     def _build_charts_tab(self):
@@ -294,6 +382,7 @@ class App(ctk.CTk):
     def _refresh_assigned_tab(self):
         for widget in self.assigned_scroll.winfo_children():
             widget.destroy()
+        self.assigned_check_vars = {}
 
         categories = [("BP", "#1F6AA5"), ("IT", "#6A1FA5"),
                       ("PRM", "#A5861F"), ("Блеклист", "#8B0000")]
@@ -314,19 +403,14 @@ class App(ctk.CTk):
             header.pack(fill="x", pady=(10, 2))
 
             for course in courses:
-                row = ctk.CTkFrame(self.assigned_scroll, fg_color="transparent")
-                row.pack(fill="x", padx=10, pady=1)
+                var = ctk.BooleanVar(value=False)
+                self.assigned_check_vars[(course, key)] = var
 
-                lbl = ctk.CTkLabel(row, text=course, anchor="w", font=ctk.CTkFont(size=12))
-                lbl.pack(side="left", fill="x", expand=True)
-
-                btn = ctk.CTkButton(
-                    row, text="Убрать", width=70, height=24,
-                    fg_color="#555555", hover_color="#777777",
-                    font=ctk.CTkFont(size=11),
-                    command=lambda c=course, k=key: self._remove_assignment(c, k),
+                cb = ctk.CTkCheckBox(
+                    self.assigned_scroll, text=course, variable=var,
+                    font=ctk.CTkFont(size=12),
                 )
-                btn.pack(side="right")
+                cb.pack(fill="x", padx=10, pady=1, anchor="w")
 
         if not any_assignments:
             ctk.CTkLabel(
@@ -337,11 +421,50 @@ class App(ctk.CTk):
                 text_color="gray", font=ctk.CTkFont(size=13),
             ).pack(pady=30)
 
-    def _remove_assignment(self, course, category_key):
-        self.assignments[category_key].discard(course)
+    def _select_all_assigned(self):
+        for var in self.assigned_check_vars.values():
+            var.set(True)
+
+    def _deselect_all_assigned(self):
+        for var in self.assigned_check_vars.values():
+            var.set(False)
+
+    def _move_assigned(self):
+        """Перенести выбранные курсы в другую категорию или убрать."""
+        cat_map = {"BP": "BP", "IT": "IT", "PRM": "PRM", "Блеклист": "BLACKLIST"}
+        target = self.assigned_target_var.get()
+        moved = 0
+
+        for (course, old_key), var in self.assigned_check_vars.items():
+            if not var.get():
+                continue
+            # Убрать из старой категории
+            self.assignments[old_key].discard(course)
+            # Если не «Убрать» — добавить в новую
+            if target != "Убрать":
+                new_key = cat_map[target]
+                if new_key != old_key:
+                    self.assignments[new_key].add(course)
+            moved += 1
+
+        if moved == 0:
+            self.lbl_status.configure(text="Не выбрано ни одного курса.")
+            return
+
         save_assignments(self.assignments)
         self._refresh_assigned_tab()
-        self.lbl_status.configure(text=f"Курс убран из {category_key}. Нажмите «Применить и пересчитать».")
+
+        if target == "Убрать":
+            self.lbl_status.configure(text=f"Убрано {moved} курсов из назначений.")
+        else:
+            self.lbl_status.configure(text=f"Перенесено {moved} курсов → {target}.")
+
+    def _recalculate_from_assigned(self):
+        """Пересчитать статистику (вызов из вкладки Назначения)."""
+        if self.final_df is not None:
+            self._recalculate()
+        else:
+            self.lbl_status.configure(text="Сначала запустите анализ.")
 
     # --------------------------------------------------------
     # Отображение неклассифицированных курсов
@@ -363,22 +486,19 @@ class App(ctk.CTk):
         self.lbl_unclass_count.configure(text=f"{len(self.unclassified_list)} курсов")
 
         for course in self.unclassified_list:
-            var = ctk.StringVar(value="—")
+            var = ctk.BooleanVar(value=False)
             self.course_vars[course] = var
 
             row = ctk.CTkFrame(self.unclass_scroll, fg_color="transparent")
             row.pack(fill="x", padx=5, pady=2)
 
-            lbl = ctk.CTkLabel(row, text=course, anchor="w", font=ctk.CTkFont(size=12))
-            lbl.pack(side="left", fill="x", expand=True)
-
-            menu = ctk.CTkOptionMenu(
-                row, variable=var, values=CATEGORY_OPTIONS,
-                width=110, height=28, font=ctk.CTkFont(size=12),
+            cb = ctk.CTkCheckBox(
+                row, text=course, variable=var,
+                font=ctk.CTkFont(size=12),
             )
-            menu.pack(side="right", padx=5)
+            cb.pack(side="left", fill="x", expand=True)
 
-            self.course_row_widgets.append((course, row, lbl))
+            self.course_row_widgets.append((course, row, cb))
 
     def _filter_unclassified(self):
         query = self.search_var.get().lower().strip()
@@ -393,30 +513,48 @@ class App(ctk.CTk):
             text=f"{visible_count} / {len(self.course_row_widgets)} курсов")
 
     # --------------------------------------------------------
+    # Выделение / снятие чекбоксов
+    # --------------------------------------------------------
+    def _select_all_unclass(self):
+        """Выделить все видимые чекбоксы на вкладке Неклассифицированные."""
+        query = self.search_var.get().lower().strip()
+        for course, var in self.course_vars.items():
+            if query == "" or query in course.lower():
+                var.set(True)
+
+    def _deselect_all_unclass(self):
+        """Снять все чекбоксы на вкладке Неклассифицированные."""
+        for var in self.course_vars.values():
+            var.set(False)
+
+    # --------------------------------------------------------
     # Применение назначений
     # --------------------------------------------------------
     def _apply_assignments(self):
         cat_map = {"BP": "BP", "IT": "IT", "PRM": "PRM", "Блеклист": "BLACKLIST"}
+        target = self.unclass_target_var.get()
+        key = cat_map[target]
         new_count = 0
 
         for course, var in self.course_vars.items():
-            val = var.get()
-            if val == "—":
-                continue
-            key = cat_map[val]
-            self.assignments[key].add(course)
-            new_count += 1
+            if var.get():
+                self.assignments[key].add(course)
+                new_count += 1
 
         if new_count == 0:
-            self.lbl_status.configure(text="Нет новых назначений для применения.")
+            self.lbl_status.configure(text="Не выбрано ни одного курса.")
             return
 
         save_assignments(self.assignments)
         self._refresh_assigned_tab()
-        self.lbl_status.configure(text=f"Назначено {new_count} курсов. Пересчёт...")
+        self.lbl_status.configure(text=f"Назначено {new_count} курсов → {target}. Нажмите «Пересчитать».")
 
+    def _recalculate_from_unclass(self):
+        """Пересчитать статистику (вызов из вкладки Неклассифицированные)."""
         if self.final_df is not None:
             self._recalculate()
+        else:
+            self.lbl_status.configure(text="Сначала запустите анализ.")
 
     def _reset_assignments(self):
         self.assignments = {"BP": set(), "IT": set(), "PRM": set(), "BLACKLIST": set()}
@@ -462,6 +600,49 @@ class App(ctk.CTk):
         self._draw_charts()
 
         self.lbl_status.configure(text="Пересчёт завершён.")
+
+    # --------------------------------------------------------
+    # Копирование текста
+    # --------------------------------------------------------
+    def _enable_copy(self, textbox):
+        """Включает Ctrl+C и контекстное меню (ПКМ) для копирования в CTkTextbox."""
+        import tkinter as tk
+
+        inner = textbox._textbox  # внутренний tk.Text виджет
+
+        def copy_selection(event=None):
+            try:
+                sel = inner.get("sel.first", "sel.last")
+                if sel:
+                    self.clipboard_clear()
+                    self.clipboard_append(sel)
+            except tk.TclError:
+                pass
+            return "break"
+
+        def select_all(event=None):
+            inner.tag_add("sel", "1.0", "end-1c")
+            return "break"
+
+        def show_context_menu(event):
+            menu = tk.Menu(inner, tearoff=0)
+            menu.add_command(label="Копировать", command=copy_selection)
+            menu.add_command(label="Выделить всё", command=select_all)
+            menu.tk_popup(event.x_root, event.y_root)
+
+        inner.bind("<Control-c>", copy_selection)
+        inner.bind("<Control-C>", copy_selection)
+        inner.bind("<Control-a>", select_all)
+        inner.bind("<Control-A>", select_all)
+        inner.bind("<Button-3>", show_context_menu)
+
+    def _copy_stats(self):
+        """Копирует текст статистики в буфер обмена."""
+        text = self.txt_stats.get("1.0", "end").strip()
+        if text:
+            self.clipboard_clear()
+            self.clipboard_append(text)
+            self.lbl_status.configure(text="Текст скопирован в буфер обмена.")
 
     # --------------------------------------------------------
     # Выбор файлов
