@@ -12,6 +12,7 @@
 
 import json
 import os
+import sys
 import threading
 from tkinter import filedialog
 
@@ -26,8 +27,13 @@ from matplotlib.figure import Figure
 # ============================================================
 # ПУТИ К ФАЙЛАМ
 # ============================================================
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-COURSES_PATH = os.path.join(_SCRIPT_DIR, "courses.json")
+if getattr(sys, 'frozen', False):
+    _SCRIPT_DIR = os.path.dirname(sys.executable)
+    _BUNDLE_DIR = sys._MEIPASS
+else:
+    _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    _BUNDLE_DIR = _SCRIPT_DIR
+COURSES_PATH = os.path.join(_BUNDLE_DIR, "courses.json")
 ASSIGNMENTS_PATH = os.path.join(_SCRIPT_DIR, "course_assignments.json")
 
 # ============================================================
@@ -107,6 +113,8 @@ def calc_stats(df, bp_set, it_set, prm_set):
         "unique_IT": len(uniques_IT),
         "unique_PRM": len(uniques_PRM),
         "person_courses": len(BP) + len(IT),
+        "person_courses_BP": len(BP),
+        "person_courses_IT": len(IT),
     }
 
 
@@ -795,6 +803,8 @@ class App(ctk.CTk):
             lines.append(f"  Уникальных IT:            {s['unique_IT']}")
             lines.append(f"  Уникальных ПРМ:           {s['unique_PRM']}")
             lines.append(f"  Человеко-курсов:          {s['person_courses']}")
+            lines.append(f"    из них BP:              {s['person_courses_BP']}")
+            lines.append(f"    из них IT:              {s['person_courses_IT']}")
             lines.append("")
 
         fmt("ИТОГО ПО ВСЕМУ ПЕРИОДУ", stats_all)
@@ -818,6 +828,7 @@ class App(ctk.CTk):
             'Период', 'Всего уникальных (BP+IT)',
             'Уникальных BP', 'Уникальных IT',
             'Уникальных ПРМ', 'Человеко-курсов',
+            'Ч-к BP', 'Ч-к IT',
         ]
         df_unclass = pd.DataFrame(unclassified, columns=['Название курса'])
         self.report_data = (df_report, df_unclass)
