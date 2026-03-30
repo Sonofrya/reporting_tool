@@ -71,6 +71,8 @@ def calc_stats(df):
         "unique_IT": len(uniques_IT),
         "unique_PRM": len(uniques_PRM),
         "person_courses": len(BP) + len(IT),
+        "person_courses_BP": len(BP),
+        "person_courses_IT": len(IT),
     }
 
 
@@ -88,6 +90,8 @@ def print_stats(label, stats):
     print(f"  Уникальных IT:            {stats['unique_IT']}")
     print(f"  Уникальных ПРМ:           {stats['unique_PRM']}")
     print(f"  Человеко-курсов:          {stats['person_courses']}")
+    print(f"    из них BP:              {stats['person_courses_BP']}")
+    print(f"    из них IT:              {stats['person_courses_IT']}")
 
 
 # ============================================================
@@ -185,7 +189,8 @@ def main():
     df_report = pd.DataFrame(rows)
     df_report.columns = ['Период', 'Всего уникальных (BP+IT)',
                          'Уникальных BP', 'Уникальных IT',
-                         'Уникальных ПРМ', 'Человеко-курсов']
+                         'Уникальных ПРМ', 'Человеко-курсов',
+                         'Ч-к BP', 'Ч-к IT']
 
     df_unclass = pd.DataFrame(unclassified, columns=['Название курса'])
 
